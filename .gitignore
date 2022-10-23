@@ -1,1 +1,5 @@
-/Chapter - 1 : Coding a basic project/dataset/*.csv
+/*/dataset/
+/*/__pycache__/
+/*/trained_models/
+/wandb
+/*/.ipynb_checkpoints/
