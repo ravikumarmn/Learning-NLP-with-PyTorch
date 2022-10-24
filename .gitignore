@@ -1,5 +1,6 @@
 /*/dataset/
 /*/__pycache__/
-/*/trained_models/
+/*/checkpoints/
 /wandb
 /*/.ipynb_checkpoints/
+/*/tsne_embeddings/

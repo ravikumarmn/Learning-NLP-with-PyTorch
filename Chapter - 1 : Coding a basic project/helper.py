@@ -1,10 +1,15 @@
-import numpy as np
 import re
+import gensim
+import config
+import pickle
+import numpy as np
 import pandas as pd
-from sklearn.metrics import auc,roc_curve
+from config import MIN_COUNT,TRIM_SIZE
+from gensim.models import KeyedVectors
 from nltk.stem import 	WordNetLemmatizer
 wordnet_lemmatizer = WordNetLemmatizer()
-from config import MIN_COUNT,TRIM_SIZE
+from sklearn.metrics import auc,roc_curve
+import json 
 
 def read_data_file(base_dir,file_name):
     dataset = pd.read_csv(base_dir+file_name)
@@ -118,3 +123,46 @@ class Metrics:
             if callable(getattr(self,x)):
               results.update({x:getattr(self,x)()})
         return results
+
+
+def build_word2vec(all_sentence,embedding_size):
+    w2v_model = gensim.models.Word2Vec(sentences=all_sentence,min_count=1,vector_size= embedding_size)
+    w2v_model.build_vocab(all_sentence)
+    print("Length of samples : ",w2v_model.corpus_count)
+    print("Length of vocab   : ",len(w2v_model.wv.key_to_index))
+    print("Training and saving model...")
+    w2v_model.train(all_sentence,total_examples=w2v_model.corpus_count,epochs=w2v_model.epochs)
+
+    w2v_model.save(f'dataset/prep_word2vectors_{config.EMBED_SIZE}.embedding')
+    wordvecs = gensim.models.Word2Vec.load(f'dataset/prep_word2vectors_{config.EMBED_SIZE}.embedding')
+    local_vocab = json.load(open(config.vocab_file_name,"r"))
+    word2index = local_vocab['word2index']
+
+    matrix_vec = np.zeros((len(word2index),config.EMBED_SIZE))
+    for word,idx in word2index.items():
+        try:
+            vector_x = wordvecs.wv[word]
+            matrix_vec[idx,:] = vector_x 
+        except KeyError:
+            pass
+
+
+    pickle_data = {"embedding_vector" : matrix_vec,
+                    'vocab_len' : len(word2index)
+                    }
+    pickle.dump(pickle_data,open(config.emb_vec_file,'wb'))
+    print("Done")
+    print(f'Model saved to {config.base_dir+config.emb_vec_file}')
+
+def words_sentence(dataframe):
+    all_words = set()
+    all_sentence = list()
+    for sentence in dataframe["trimmed_review"]:
+        all_sentence.append(sentence.lower().split())
+        for word in sentence.lower().split():
+            all_words.add(word)
+    len_all_words = len(all_words)
+    len_all_sentence = len(all_sentence)
+    print(f"Total number of words : {len_all_words}")
+    print(f"Total number of sentence : {len_all_sentence}")
+    return all_words,all_sentence

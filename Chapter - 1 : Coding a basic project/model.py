@@ -1,17 +1,27 @@
 import torch
 import torch.nn as nn 
+import pickle
 
 class BCModel(nn.Module):
-    def __init__(self,args_dict,num_dim):
+    def __init__(self,args_dict,num_dim,pretrained_embd = None):
         """
         Given embedding_matrix: numpy array with vector for all words
         return prediction ( in torch tensor format)
         """
         super(BCModel, self).__init__()
+
         self.embedding = nn.Embedding(num_dim,
                         embedding_dim=args_dict['EMBED_SIZE'])
+        if pretrained_embd != None:
+            pickle_data = pickle.load(open(pretrained_embd,'rb'))
+            pickle_data = torch.tensor(pickle_data["embedding_vector"],requires_grad = True).float()
+            emb_matrix = nn.Parameter(pickle_data)
+            assert self.embedding.weight.shape == emb_matrix.shape
+            self.embedding.weight = emb_matrix
+
+
         # Embedding matrix actually is collection of parameter
-        # self.embedding.weight = nn.Parameter(torch.tensor(embedding_matrix, dtype = torch.float32))
+        # self.embedding.weight = nn.Parameter(torch.tensor(embedding_matrix, dtype =))
         # Because we use pretrained embedding (GLove, Fastext,etc) so we turn off requires_grad-meaning we do not train gradient on embedding weight
         # self.embedding.weight.requires_grad = False
         # LSTM with hidden_size = 64

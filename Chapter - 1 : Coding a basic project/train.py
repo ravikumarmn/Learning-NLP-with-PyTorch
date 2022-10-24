@@ -67,6 +67,7 @@ def main():
 
     vocab = json.load(open(config.base_dir + config.vocab_file_name,'r'))
     word2index = vocab["word2index"]
+    args['vocab_len'] = len(word2index)
     
     if config.debug_mode:
         trains = CustomDataset("debug")
@@ -77,23 +78,23 @@ def main():
 
     train_dataloader = DataLoader(trains,batch_size = config.BATCH_SIZE,shuffle = True,drop_last = True)
     test_dataloader = DataLoader(tests,batch_size = config.BATCH_SIZE,drop_last = True)
-
+    
     num_dim = vocab['vocab_len']
-    model = BCModel(args,num_dim).to(config.device)
+    model = BCModel(args,num_dim,args["base_dir"] + args['emb_vec_file']).to(config.device)
     optimizer = Adam(model.parameters(), lr=config.LEARNING_RATE)
     
-    tqdm_obj_epoch = tqdm(range(params["EPOCHS"]),total = params["EPOCHS"],leave = False)
+    tqdm_obj_epoch = tqdm(range(config.EPOCHS),total = config.EPOCHS,leave = False)
     tqdm_obj_epoch.set_description_str("Epoch")
     val_loss = np.inf
 
     for epoch in tqdm_obj_epoch:
         # train_loss,all_pred,all_true,metrics = train(model, config.device, train_dataloader, optimizer, epoch)
         # test(model, config.device, test_dataloader)
-        train_loss,train_all_pred,train_all_true,train_metrics = train(model,params["device"],train_dataloader,optimizer)
+        train_loss,train_all_pred,train_all_true,train_metrics = train(model,config.device,train_dataloader,optimizer)
         training_loss = sum(train_loss)/len(train_loss)
         training_accuracy = train_metrics.compute_accuracy()
 
-        test_loss,test_all_pred,test_all_true,test_metrics = evaluate(model,params["device"],test_dataloader)
+        test_loss,test_all_pred,test_all_true,test_metrics = evaluate(model,config.device,test_dataloader)
         validation_loss = sum(test_loss)/len(test_loss)
         validation_accuracy = test_metrics.compute_accuracy()
 
@@ -104,16 +105,17 @@ def main():
             val_loss = validation_loss
 
             early_stopping = 0  
-            if not params['debug_mode']:
+            if not config.debug_mode:
                 torch.save(
                     {  
                         "model_state_dict":model.state_dict(),
-                        "params":params
-                    },str(params["save_checkpoint_dir"])+\
-                        f'seq2seq_hidden_{params["HIDDEN_SIZE"]}_embed_{params["EMBED_SIZE"]}_imdb_prep.pt')
+                        "params":args
+                    },config.checkpoints_file)
         else:
             early_stopping += 1
         if early_stopping == params["patience"]:
+            #Learning-NLP-with-PyTorch/Chapter - 1 : Coding a basic project/checkpoints
+            print(f"Model checkpoints saved to {config.checkpoints_file}")
             df_cm = pd.DataFrame(confu_matrix, range(x), range(y))
             # df_norm_col=(df_cm-df_cm.mean())/df_cm.std()
             ax = plt.axes()
@@ -178,9 +180,10 @@ if __name__ == '__main__':
                 entity="ravikumarmn",
                 name = params["runtime_name"] + f'hidden_{params["HIDDEN_SIZE"]}_embed_{params["EMBED_SIZE"]}',
                 notes = "bidirectional lstm, reduced model size to 64 hidden",
-                tags = ['max-mean-pool',"bi-lstm"],
+                tags = ['max-mean-pool',"bi-lstm","pretrained_w2v"],
+                group = "binary",
                 config=params,
-                mode = 'online')
+                mode = 'disabled')
     else:
         print(f"DEBUG MODE :{params['debug_mode']}")
 
