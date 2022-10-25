@@ -183,7 +183,7 @@ if __name__ == '__main__':
                 tags = ['max-mean-pool',"bi-lstm","pretrained_w2v"],
                 group = "binary",
                 config=params,
-                mode = 'disabled')
+                mode = 'online')
     else:
         print(f"DEBUG MODE :{params['debug_mode']}")
 
