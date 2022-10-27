@@ -14,6 +14,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sn
 import wandb
+import os
 
 def train(model, device, train_loader, optimizer):
     model.train()
@@ -63,38 +64,53 @@ def evaluate(model, device, test_loader):
         return test_loss,all_pred,all_true,metrics
 
 def main():
-    args = {k:v for k,v in config.__dict__.items() if "__" not in k}
+    params =  {k:v for k,v in config.__dict__.items() if "__" not in k}
+    current_dirs = os.getcwd()
+    path = os.path.dirname(current_dirs)+"/Chapter - 1 : Coding a basic project" #this is base for dataset
+    params["base_data_dir"] = path
+    print("Params :",params, sep="\n")
+    if not params['debug_mode']:
+        wandb.init(project='Binary-Classification',
+                entity="ravikumarmn",
+                name = params["runtime_name"] + f'hidden_{params["HIDDEN_SIZE"]}_embed_{params["EMBED_SIZE"]}',
+                notes = "",
+                tags = ["CNN"],
+                group = "binary",
+                config=params,
+                mode = 'disabled')
+    else:
+        print(f"DEBUG MODE :{params['debug_mode']}")
 
-    vocab = json.load(open(config.base_dir + config.vocab_file_name,'r'))
+    vocab = json.load(open(params["base_data_dir"] + params["vocab_file_name"],'r'))
     word2index = vocab["word2index"]
-    args['vocab_len'] = len(word2index)
+    params['vocab_len'] = len(word2index)
     
-    if config.debug_mode:
+    if params["debug_mode"]:
         trains = CustomDataset("debug")
         tests = CustomDataset("debug")
     else:
         trains = CustomDataset("train")
         tests = CustomDataset("test")       
 
-    train_dataloader = DataLoader(trains,batch_size = config.BATCH_SIZE,shuffle = True,drop_last = True)
-    test_dataloader = DataLoader(tests,batch_size = config.BATCH_SIZE,drop_last = True)
+    train_dataloader = DataLoader(trains,batch_size = params["BATCH_SIZE"],shuffle = True,drop_last = True)
+    test_dataloader = DataLoader(tests,batch_size = params["BATCH_SIZE"],drop_last = True)
     
     num_dim = vocab['vocab_len']
-    model = BCModel(args,num_dim).to(config.device)
-    optimizer = Adam(model.parameters(), lr=config.LEARNING_RATE)
+    model = BCModel(params,num_dim).to(params["device"])
+    optimizer = Adam(model.parameters(), lr=params["LEARNING_RATE"])
     
-    tqdm_obj_epoch = tqdm(range(config.EPOCHS),total = config.EPOCHS,leave = False)
+    tqdm_obj_epoch = tqdm(range(params["EPOCHS"]),total = params["EPOCHS"],leave = False)
     tqdm_obj_epoch.set_description_str("Epoch")
     val_loss = np.inf
 
     for epoch in tqdm_obj_epoch:
-        # train_loss,all_pred,all_true,metrics = train(model, config.device, train_dataloader, optimizer, epoch)
-        # test(model, config.device, test_dataloader)
-        train_loss,train_all_pred,train_all_true,train_metrics = train(model,config.device,train_dataloader,optimizer)
+        # train_loss,all_pred,all_true,metrics = train(model, params["device"], train_dataloader, optimizer, epoch)
+        # test(model, params["device"], test_dataloader)
+        train_loss,train_all_pred,train_all_true,train_metrics = train(model,params["device"],train_dataloader,optimizer)
         training_loss = sum(train_loss)/len(train_loss)
         training_accuracy = train_metrics.compute_accuracy()
 
-        test_loss,test_all_pred,test_all_true,test_metrics = evaluate(model,config.device,test_dataloader)
+        test_loss,test_all_pred,test_all_true,test_metrics = evaluate(model,params["device"],test_dataloader)
         validation_loss = sum(test_loss)/len(test_loss)
         validation_accuracy = test_metrics.compute_accuracy()
 
@@ -105,17 +121,17 @@ def main():
             val_loss = validation_loss
 
             early_stopping = 0  
-            if not config.debug_mode:
+            if not params["debug_mode"]:
                 torch.save(
                     {  
                         "model_state_dict":model.state_dict(),
-                        "params":args
-                    },config.checkpoints_file)
+                        "params":params
+                    },params["checkpoints_file"])
         else:
             early_stopping += 1
         if early_stopping == params["patience"]:
             #Learning-NLP-with-PyTorch/Chapter - 1 : Coding a basic project/checkpoints
-            print(f"Model checkpoints saved to {config.checkpoints_file}")
+            print(f'Model checkpoints saved to {params["checkpoints_file"]}')
             df_cm = pd.DataFrame(confu_matrix, range(x), range(y))
             # df_norm_col=(df_cm-df_cm.mean())/df_cm.std()
             ax = plt.axes()
@@ -173,18 +189,6 @@ def main():
                     })
 
 if __name__ == '__main__':
-    params =  {k:v for k,v in config.__dict__.items() if "__" not in k}
-    print("Params :",params, sep="\n")
-    if not params['debug_mode']:
-        wandb.init(project='Binary-Classification',
-                entity="ravikumarmn",
-                name = params["runtime_name"] + f'hidden_{params["HIDDEN_SIZE"]}_embed_{params["EMBED_SIZE"]}',
-                notes = "",
-                tags = ["CNN"],
-                group = "binary",
-                config=params,
-                mode = 'online')
-    else:
-        print(f"DEBUG MODE :{params['debug_mode']}")
+
 
     main()

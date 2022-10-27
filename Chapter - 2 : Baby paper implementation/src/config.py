@@ -1,14 +1,14 @@
+base_data_dir = ""
 base_dir = ""
-
 runtime_name = "CNN"
-device = 'cpu'
+device = 'cuda'
 
 # raw_dataset_file = "dataset/imdb_dataset.csv"
 # preprocessed_dataset_file = "dataset/preprocessed_dataset.csv"
 mapping = {"negative":0,"positive" : 1}
-vocab_file_name = "dataset/vocab.json"
+vocab_file_name = "/dataset/vocab.json"
 
-train_test_data_file = "dataset/train_test_vocabed.pkl"
+train_test_data_file = "/dataset/train_test_vocabed.pkl"
 emb_vec_file = "dataset/prep_emb_vec.pkl"
 
 MIN_COUNT = 4
@@ -19,7 +19,7 @@ target_columns = ["sentiment"]
 input_column = ["trimmed_review"]
 
 max_seq_len = 300
-BATCH_SIZE = 16
+BATCH_SIZE = 32
 LEARNING_RATE = 0.001
 EPOCHS = 100
 

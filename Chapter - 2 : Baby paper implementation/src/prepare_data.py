@@ -7,13 +7,17 @@ import helper
 from sklearn.model_selection import train_test_split
 import numpy as np
 from tqdm import tqdm 
+import os
 
 class CustomDataset(Dataset):
     def __init__(self,data_type = 'train'):
         super(CustomDataset,self).__init__()
         self.max_seq_len = config.max_seq_len
-        data = pickle.load(open(config.base_dir + config.train_test_data_file,'rb'))
-        vocab = json.load(open(config.base_dir + config.vocab_file_name,"r"))
+        current_dirs = os.getcwd()
+        path = os.path.dirname(current_dirs)+"/Chapter - 1 : Coding a basic project" #this is base for dataset
+        config.base_data_dir = path
+        data = pickle.load(open(config.base_data_dir + config.train_test_data_file,'rb'))
+        vocab = json.load(open(config.base_data_dir + config.vocab_file_name,"r"))
         self.word2index = vocab['word2index']
         self.pad_str  = 0
 
@@ -60,7 +64,7 @@ class CustomDataset(Dataset):
 
 
 # if __name__ == "__main__":
-#     data = helper.read_data_file(config.base_dir,config.preprocessed_dataset_file)
+#     data = helper.read_data_file(config.base_data_dir,config.preprocessed_dataset_file)
 #     # samples,word2index,index2word,uniq_words = build_vocabulary(data[config.input_column[0]])
     
 #     # json.dump(
@@ -68,7 +72,7 @@ class CustomDataset(Dataset):
 #     #   "word2index" : word2index,
 #     #   "index2word" : index2word
 #     # },
-#     vocabs = json.load(open(config.base_dir + config.vocab_file_name,"r"))
+#     vocabs = json.load(open(config.base_data_dir + config.vocab_file_name,"r"))
 #     tokens = list()
 #     for sentence in tqdm(data['trimmed_review']):
 #         token_sentence = list()
@@ -85,5 +89,5 @@ class CustomDataset(Dataset):
 #         "X_test" : X_test,
 #         "y_train" : y_train.values.tolist(),
 #         "y_test" : y_test.values.tolist(),
-#     },open(config.base_dir + config.train_test_data_file,'wb'))
+#     },open(config.base_data_dir + config.train_test_data_file,'wb'))
 #     print("Data prepared.")
