@@ -4,3 +4,6 @@
 /wandb
 /*/.ipynb_checkpoints/
 /*/tsne_embeddings/
+/*/images/
+/*/wandb/
+/*/*/__pycache__
