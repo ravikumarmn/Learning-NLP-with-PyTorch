@@ -20,12 +20,31 @@ class BCModel(nn.Module):
             self.embedding.weight = emb_matrix
 
         self.conv_net = nn.Sequential(
-            nn.Conv1d(in_channels=args_dict['EMBED_SIZE'],out_channels=args_dict["HIDDEN_SIZE"],kernel_size=args_dict['kernel_size'],stride = args_dict["stride"])
+            nn.Conv1d(in_channels=args_dict['EMBED_SIZE'],out_channels=args_dict["HIDDEN_SIZE"],kernel_size=args_dict['kernel_size'],stride = args_dict["stride"]),
+            nn.Conv1d(in_channels=args_dict['HIDDEN_SIZE'],out_channels=args_dict["HIDDEN_SIZE"],kernel_size=args_dict['kernel_size'],stride = args_dict["stride"]),
+            nn.ReLU(),
+            nn.Dropout(),
+            nn.Conv1d(in_channels=args_dict['HIDDEN_SIZE'],out_channels=args_dict["HIDDEN_SIZE"],kernel_size=args_dict['kernel_size'],stride = args_dict["stride"]),
+            nn.ReLU(),
+            nn.Dropout(),
+            nn.Conv1d(in_channels=args_dict['HIDDEN_SIZE'],out_channels=args_dict["HIDDEN_SIZE"],kernel_size=args_dict['kernel_size'],stride = args_dict["stride"]),
+            nn.ReLU(),
+            nn.Dropout(),
+
+             nn.Conv1d(in_channels=args_dict['HIDDEN_SIZE'],out_channels=args_dict["HIDDEN_SIZE"],kernel_size=args_dict['kernel_size'],stride = args_dict["stride"]),
+            nn.ReLU(),
+            nn.Dropout(),
+            nn.Conv1d(in_channels=args_dict['HIDDEN_SIZE'],out_channels=args_dict["HIDDEN_SIZE"],kernel_size=args_dict['kernel_size'],stride = args_dict["stride"]),
+            nn.ReLU(),
+            nn.Dropout(),
+            nn.Conv1d(in_channels=args_dict['HIDDEN_SIZE'],out_channels=args_dict["HIDDEN_SIZE"],kernel_size=args_dict['kernel_size'],stride = args_dict["stride"]),
+            nn.ReLU(),
+            nn.Dropout()
         )
-        for _ in range(6):
-            self.conv_net.append(
-                nn.Conv1d(in_channels=args_dict['HIDDEN_SIZE'],out_channels=args_dict["HIDDEN_SIZE"],kernel_size=args_dict['kernel_size'],stride = args_dict["stride"])
-            )
+        # for _ in range(6):
+        #     self.conv_net.append(
+        #         nn.Conv1d(in_channels=args_dict['HIDDEN_SIZE'],out_channels=args_dict["HIDDEN_SIZE"],kernel_size=args_dict['kernel_size'],stride = args_dict["stride"])
+        #     )
 
         self.out = nn.Linear(args_dict["HIDDEN_SIZE"], args_dict["n_labels"])
         self.sigmoid = nn.Sigmoid()
