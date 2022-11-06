@@ -21,11 +21,21 @@ def train(model, device, train_loader, optimizer):
     all_true = list()
     train_loss = list()
     all_probs = list()
+    tqdm_obj_epoch = tqdm(enumerate(train_loader),total = config.EPOCHS,leave = False)
 
-    for batch_idx, data in enumerate(train_loader):
+    for batch_idx, data in tqdm_obj_epoch:
         data, target = data['seq_padded'].to(device), data['label'].to(device)
         optimizer.zero_grad()
-        probs = model(data).squeeze()
+        init_h = torch.randn(1,32,64)
+        k = np.sqrt(1/64)
+
+        init_h.data.uniform_(-k,k)
+
+        init_c_prev = torch.randn(1,32,64)
+        init_c_prev.data.uniform_(-k,k)
+
+        tuple_in = (init_h,init_c_prev)
+        probs = model(data,tuple_in).squeeze()
         loss = nn.BCELoss()(probs, target)
         loss.backward()
         optimizer.step()
@@ -43,6 +53,16 @@ def train(model, device, train_loader, optimizer):
 def evaluate(model, device, test_loader):
     model.eval()
 
+    init_h = torch.randn(1,32,64)
+    k = np.sqrt(1/64)
+
+    init_h.data.uniform_(-k,k)
+
+    init_c_prev = torch.randn(1,32,64)
+    init_c_prev.data.uniform_(-k,k)
+
+    tuple_in = (init_h,init_c_prev)
+
     all_pred = list()
     all_true = list()
     test_loss = list()
@@ -50,7 +70,7 @@ def evaluate(model, device, test_loader):
     with torch.no_grad():
         for data in test_loader:
             data, target = data['seq_padded'].to(device), data['label'].to(device)
-            probs = model(data).squeeze()
+            probs = model(data,tuple_in).squeeze()
             
             loss = nn.BCELoss()(probs, target).item()  # sum up batch loss
             pred = (probs.data>=0.5).float()
@@ -64,6 +84,15 @@ def evaluate(model, device, test_loader):
 
 def main():
     args = {k:v for k,v in config.__dict__.items() if "__" not in k}
+    k = np.sqrt(1/args["HIDDEN_SIZE"])
+
+    init_h = torch.randn(1,args["BATCH_SIZE"],args["HIDDEN_SIZE"])
+    init_h.data.uniform_(-k,k)
+
+    init_c_prev = torch.randn(1,args["BATCH_SIZE"],args["HIDDEN_SIZE"])
+    init_c_prev.data.uniform_(-k,k)
+
+    tuple_in = (init_h,init_c_prev)
 
     vocab = json.load(open(config.base_dir + config.vocab_file_name,'r'))
     word2index = vocab["word2index"]
@@ -80,7 +109,7 @@ def main():
     test_dataloader = DataLoader(tests,batch_size = config.BATCH_SIZE,drop_last = True)
     
     num_dim = vocab['vocab_len']
-    model = BCModel(args,num_dim,args["base_dir"] + args['emb_vec_file']).to(config.device)
+    model = BCModel(args,num_dim,tuple_in).to(config.device)
     optimizer = Adam(model.parameters(), lr=config.LEARNING_RATE)
     
     tqdm_obj_epoch = tqdm(range(config.EPOCHS),total = config.EPOCHS,leave = False)
@@ -105,26 +134,20 @@ def main():
             val_loss = validation_loss
 
             early_stopping = 0  
-            if not config.debug_mode:
-                torch.save(
-                    {  
-                        "model_state_dict":model.state_dict(),
-                        "params":args
-                    },config.checkpoints_file)
         else:
             early_stopping += 1
         if early_stopping == params["patience"]:
             #Learning-NLP-with-PyTorch/Chapter - 1 : Coding a basic project/checkpoints
-            print(f"Model checkpoints saved to {config.checkpoints_file}")
-            df_cm = pd.DataFrame(confu_matrix, range(x), range(y))
-            # df_norm_col=(df_cm-df_cm.mean())/df_cm.std()
-            ax = plt.axes()
-            sn.set(font_scale=1.4) # for label size
+            # print(f"Model checkpoints saved to {config.checkpoints_file}")
+            # df_cm = pd.DataFrame(confu_matrix, range(x), range(y))
+            # # df_norm_col=(df_cm-df_cm.mean())/df_cm.std()
+            # ax = plt.axes()
+            # sn.set(font_scale=1.4) # for label size
             
-            sn.heatmap(df_cm, annot=True, annot_kws={"size": 16},) # font size
-            ax.set_title('Confusion matrix of the classifier')
-            # plt.savefig('Chapter - 1 _ Coding a basic project/confusion_matrix1.jpg')
-            print("Early stopping")
+            # sn.heatmap(df_cm, annot=True, annot_kws={"size": 16},) # font size
+            # ax.set_title('Confusion matrix of the classifier')
+            # # plt.savefig('Chapter - 1 _ Coding a basic project/confusion_matrix1.jpg')
+            # print("Early stopping")
             break
             
 
@@ -174,6 +197,7 @@ def main():
 
 if __name__ == '__main__':
     params =  {k:v for k,v in config.__dict__.items() if "__" not in k}
+    
     print("Params :",params, sep="\n")
     if not params['debug_mode']:
         wandb.init(project='Binary-Classification',
@@ -183,7 +207,7 @@ if __name__ == '__main__':
                 tags = ['max-mean-pool',"bi-lstm","pretrained_w2v"],
                 group = "binary",
                 config=params,
-                mode = 'online')
+                mode = 'disabled')
     else:
         print(f"DEBUG MODE :{params['debug_mode']}")
 
