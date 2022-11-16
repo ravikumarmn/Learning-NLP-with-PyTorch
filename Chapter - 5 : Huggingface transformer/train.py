@@ -2,7 +2,7 @@ import json
 import torch
 import config
 import torch.nn as nn
-from tqdm import tqdm
+from tqdm.auto import tqdm
 from torch.optim import Adam,SGD
 import torch.nn.functional as F
 from prepare_data import CustomDataset
@@ -14,6 +14,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sn
 import wandb
+# torch.cuda.empty_cache()
 
 def train(model, device, train_loader, optimizer):
     model.train()
@@ -25,10 +26,13 @@ def train(model, device, train_loader, optimizer):
 
     for batch_idx, data in tqdm_obj_epoch:
         data, target = data['input'], data['label']
+        data['input_ids'] = data['input_ids'].to(config.device)
+        data['attention_mask'] = data['attention_mask'].to(config.device)
+        data['token_type_ids'] = data['token_type_ids'].to(config.device)
         optimizer.zero_grad()
 
-        probs = model(data).squeeze()
-        loss = nn.BCELoss()(probs, target)
+        probs = model(data['input_ids'],data['attention_mask']).squeeze()
+        loss = nn.BCELoss()(probs.cpu(), target)
         loss.backward()
         optimizer.step()
 
@@ -49,11 +53,14 @@ def evaluate(model, device, test_loader):
     test_loss = list()
     all_probs = list()
     with torch.no_grad():
-        for data in test_loader:
-            data, target = data['input'], data['label']
-            probs = model(data).squeeze()
+        test_obj_epoch = tqdm(enumerate(test_loader),total = config.EPOCHS,leave = False)
+        for data in test_obj_epoch:
+            data, target = data[1]['input'], data[1]['label']
+            data['input_ids'] = data['input_ids'].to(config.device)
+            data['attention_mask'] = data['attention_mask'].to(config.device)
+            probs = model(data['input_ids'] ,data['attention_mask']).squeeze()
             
-            loss = nn.BCELoss()(probs, target).item()  # sum up batch loss
+            loss = nn.BCELoss()(probs.cpu(), target)
             pred = (probs.data>=0.5).float()
     
             test_loss.append(loss)

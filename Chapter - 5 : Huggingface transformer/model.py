@@ -12,10 +12,9 @@ class ClfModel(nn.Module):
 
         self.fc = nn.Linear(in_features=512,out_features=1)
 
-    def forward(self,x):
-        out = self.bert(**x)
-
-        return torch.sigmoid(out.logits)
+    def forward(self,input_id,mask):
+        out = self.bert(input_ids= input_id, attention_mask=mask,return_dict = False)
+        return torch.sigmoid(out[0])
 
 
 

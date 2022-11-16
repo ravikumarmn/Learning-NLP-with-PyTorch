@@ -1,6 +1,6 @@
 runtime_name = "huggingface_bert-base-uncased"
-device = 'cpu'
-base_folder = "/home/ravikumar/Desktop/NLP/Learning-NLP-with-PyTorch/"
+device = 'cuda'
+base_folder = "/home/Ravikumar/Developer/Learning-NLP-with-PyTorch/"
 base_dir = "Chapter - 1 : Coding a basic project/"
 raw_dataset_file = "dataset/imdb_dataset.csv"
 preprocessed_dataset_file = "dataset/preprocessed_dataset.csv"
@@ -18,9 +18,9 @@ target_columns = ["sentiment"]
 input_column = ["trimmed_review"]
 
 max_seq_len = 300
-BATCH_SIZE = 4
+BATCH_SIZE = 16
 LEARNING_RATE = 0.00001
-EPOCHS = 100
+EPOCHS = 5
 
 EMBED_SIZE = 32
 HIDDEN_SIZE = 64
@@ -29,7 +29,7 @@ OUT_DIM = 16
 n_labels = 1
 patience = 3
 
-debug_mode = True
+debug_mode = False
 
 save_checkpoint_dir =  base_dir + "checkpoints/"
 checkpoints_file = f"{save_checkpoint_dir}{runtime_name}_seq2seq_hidden_{HIDDEN_SIZE}_embed_{EMBED_SIZE}.pt"
