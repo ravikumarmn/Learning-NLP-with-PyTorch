@@ -18,7 +18,7 @@ target_columns = ["sentiment"]
 input_column = ["trimmed_review"]
 
 max_seq_len = 300
-BATCH_SIZE = 16
+BATCH_SIZE = 16+8
 LEARNING_RATE = 0.00001
 EPOCHS = 5
 

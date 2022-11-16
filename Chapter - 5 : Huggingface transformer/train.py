@@ -14,7 +14,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sn
 import wandb
-# torch.cuda.empty_cache()
 
 def train(model, device, train_loader, optimizer):
     model.train()
@@ -22,22 +21,22 @@ def train(model, device, train_loader, optimizer):
     all_true = list()
     train_loss = list()
     all_probs = list()
-    tqdm_obj_epoch = tqdm(enumerate(train_loader),total = config.EPOCHS,leave = False)
+    loss_fn = nn.BCELoss().to(config.device)
 
-    for batch_idx, data in tqdm_obj_epoch:
+    train_obj_epoch = tqdm(train_loader,total = len(train_loader),leave=None)
+
+    for data in train_obj_epoch:
         data, target = data['input'], data['label']
-        data['input_ids'] = data['input_ids'].to(config.device)
-        data['attention_mask'] = data['attention_mask'].to(config.device)
-        data['token_type_ids'] = data['token_type_ids'].to(config.device)
+        data = {k:v.to(config.device) for k,v in data.items()}
+        target = target.to(config.device)
         optimizer.zero_grad()
 
         probs = model(data['input_ids'],data['attention_mask']).squeeze()
-        loss = nn.BCELoss()(probs.cpu(), target)
+        loss = loss_fn(probs,target)
         loss.backward()
         optimizer.step()
-
-        train_loss.append(loss.item())
-        pred = (probs.data>=0.5).int()
+        train_loss.append(loss.cpu().item())
+        pred = (probs.cpu().data>=0.5).int()
         all_probs.extend(probs.data.tolist())
 
         all_pred.extend(pred.tolist())
@@ -52,21 +51,20 @@ def evaluate(model, device, test_loader):
     all_true = list()
     test_loss = list()
     all_probs = list()
+    loss_fn = nn.BCELoss().to(config.device)
     with torch.no_grad():
-        test_obj_epoch = tqdm(enumerate(test_loader),total = config.EPOCHS,leave = False)
+        test_obj_epoch = tqdm(test_loader,total = len(test_loader),leave=None)
         for data in test_obj_epoch:
-            data, target = data[1]['input'], data[1]['label']
-            data['input_ids'] = data['input_ids'].to(config.device)
-            data['attention_mask'] = data['attention_mask'].to(config.device)
+            data, target = data['input'], data['label']
+            data = {k:v.to(config.device) for k,v in data.items()}
+            target = target.to(config.device)
             probs = model(data['input_ids'] ,data['attention_mask']).squeeze()
-            
-            loss = nn.BCELoss()(probs.cpu(), target)
+            loss = loss_fn(probs, target)
             pred = (probs.data>=0.5).float()
-    
-            test_loss.append(loss)
-            all_probs.extend(probs.data.tolist())
-            all_pred.extend(pred.int().tolist())
-            all_true.extend(target.int().tolist())
+            test_loss.append(loss.cpu().item())
+            all_probs.extend(probs.cpu().data.tolist())
+            all_pred.extend(pred.cpu().int().tolist())
+            all_true.extend(target.cpu().int().tolist())
         metrics = Metrics(all_true,all_pred,all_probs)
         return test_loss,all_pred,all_true,metrics
 
@@ -91,13 +89,11 @@ def main():
     model = ClfModel().to(config.device)
     optimizer = Adam(model.parameters(), lr=config.LEARNING_RATE)
     
-    tqdm_obj_epoch = tqdm(range(config.EPOCHS),total = config.EPOCHS,leave = False)
+    tqdm_obj_epoch = tqdm(range(config.EPOCHS),total = config.EPOCHS)
     tqdm_obj_epoch.set_description_str("Epoch")
     val_loss = np.inf
 
     for epoch in tqdm_obj_epoch:
-        # train_loss,all_pred,all_true,metrics = train(model, config.device, train_dataloader, optimizer, epoch)
-        # test(model, config.device, test_dataloader)
         train_loss,train_all_pred,train_all_true,train_metrics = train(model,config.device,train_dataloader,optimizer)
         training_loss = sum(train_loss)/len(train_loss)
         training_accuracy = train_metrics.compute_accuracy()
@@ -116,31 +112,9 @@ def main():
         else:
             early_stopping += 1
         if early_stopping == params["patience"]:
-            #Learning-NLP-with-PyTorch/Chapter - 1 : Coding a basic project/checkpoints
-            # print(f"Model checkpoints saved to {config.checkpoints_file}")
-            # df_cm = pd.DataFrame(confu_matrix, range(x), range(y))
-            # # df_norm_col=(df_cm-df_cm.mean())/df_cm.std()
-            # ax = plt.axes()
-            # sn.set(font_scale=1.4) # for label size
-            
-            # sn.heatmap(df_cm, annot=True, annot_kws={"size": 16},) # font size
-            # ax.set_title('Confusion matrix of the classifier')
-            # # plt.savefig('Chapter - 1 _ Coding a basic project/confusion_matrix1.jpg')
-            # print("Early stopping")
+            print(f"Model checkpoints saved to {config.checkpoints_file}")
+            print("Early stopping")
             break
-            
-
-        # print(f'Epoch: {epoch+1}/{params["EPOCHS"]}\
-        #     Train loss: {training_loss}\
-        #         Train acc: {training_accuracy}\
-        #             Val loss:{validation_loss}\
-        #                 Val acc:{validation_accuracy}\
-        #                     Recall: {test_metrics.compute_recall()}\
-        #                         Precision : {test_metrics.compute_precision()}\
-        #                             f1_score : {test_metrics.compute_f1_score()}\
-        #                                 auc_score : {test_metrics.compute_auc()}')
-        # training_accuracy = accuracy_score(train_all_true,train_all_pred)
-        # validation_accuracy = accuracy_score(test_all_true,test_all_pred)
         print(f'\nEpoch: {epoch+1}/{params["EPOCHS"]}')
         print(f"TRAIN : Loss :{training_loss:.4}\tACC :{training_accuracy:.4}\t AUC :{train_metrics.compute_auc():.4}")
         print(f"VAL   : Loss :{val_loss:.4},\tACC :{validation_accuracy:.4}\t AUC :{test_metrics.compute_auc():.4}")
@@ -182,11 +156,11 @@ if __name__ == '__main__':
         wandb.init(project='Binary-Classification',
                 entity="ravikumarmn",
                 name = params["runtime_name"] + f'hidden_{params["HIDDEN_SIZE"]}_embed_{params["EMBED_SIZE"]}',
-                notes = "bidirectional lstm, reduced model size to 64 hidden",
-                tags = ['max-mean-pool',"bi-lstm","pretrained_w2v"],
+                notes = "used base-uncased bert model and add final linear layer.",
+                tags = ["bert"],
                 group = "binary",
                 config=params,
-                mode = 'disabled')
+                mode = 'online')
     else:
         print(f"DEBUG MODE :{params['debug_mode']}")
 

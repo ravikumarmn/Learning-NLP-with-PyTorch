@@ -31,19 +31,19 @@ class CustomDataset(torch.utils.data.Dataset):
             sentences = [self.decode_word(ids) for ids in data['X_test'][:100]]
             self.tokens = self.batch_encode(sentences)
             self.labels = torch.tensor(data['y_test'][:100],dtype=torch.float)
-        self.n_examples = len(sentences)
+        self.n_examples = len(self.tokens)
     def __len__(self):
         return self.n_examples
 
     def __getitem__(self,idx):
-        items = {"input" : {k:v[idx] for k,v in self.tokens.items()},
+        items = {"input" : self.tokens[idx],
                 "label" : self.labels[idx]}
 
         return items
 
     def batch_encode(self,total_data,batch_size=10):
-        token_keys = None
-        for i in range(0,len(total_data),batch_size):
+        tokens_list = []
+        for i in tqdm( range(0,len(total_data),batch_size) ):
             batch = total_data[i:i+batch_size]
             tokens = self.tokenizer.batch_encode_plus(batch,
                                 padding = 'max_length',
@@ -51,13 +51,14 @@ class CustomDataset(torch.utils.data.Dataset):
                                 max_length = 300,
                                 return_tensors = "pt",
                                 )
-            if i==0:
-                token_keys = {k:[] for k in tokens.keys()}
-            for k,v in tokens.items():
-                token_keys[k].append(v)
 
-        batch_out = {k:torch.concat(b,dim=0) for k,b in token_keys.items()}
-        return batch_out
+            for i in range(len(tokens["input_ids"])):
+                local_dict = {}
+                for k,v in tokens.items():
+                    local_dict[k] = v[i]
+                tokens_list.append(local_dict)
+        ##{input_ids:[[seq],[seq],[seq],[seq]],"attenmask":[[seq],[seq],[seq],[seq]]}
+        return tokens_list
 
 
 
