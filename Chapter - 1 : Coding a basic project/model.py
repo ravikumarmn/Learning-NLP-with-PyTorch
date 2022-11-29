@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn 
 import pickle
-from model1 import LSTM_cell
+from model import LSTM_cell
 
 class BCModel(nn.Module):
     def __init__(self,args_dict,num_dim,tuple_in,pretrained_embd = None):
