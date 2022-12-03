@@ -17,7 +17,7 @@ class ClfModel(nn.Module):
         )
         self.fc = nn.Linear(in_features=512,out_features=1)
 
-    def forward(self,x):
+    def forward(self,x): 
         batch_sz,seq_len = x.size()
         src_m = x == 0
         mask = x != 0

@@ -15,6 +15,18 @@ from model import ClassifierModel
 from tokenizer import Tokenizer
 import os
 import matplotlib.pyplot as plt
+from sklearn.metrics import multilabel_confusion_matrix
+from sklearn.metrics import confusion_matrix,classification_report
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import plotly.express as px
+fig = make_subplots(rows=3, cols=3, start_cell="bottom-left")
+
+
+
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+import matplotlib.pyplot as plt
+
 
 def train(model,train_loader,optimizer,params,loss):
     train_loss = list()
@@ -74,7 +86,6 @@ def CustumLoader(params):
     valid_dataset = splitted_data["valid_dataset"][params["LABELS"] +["pairs"]]
     train_dataset = splitted_data["train_dataset"][params["LABELS"] +["pairs"]]
 
-
     training_set = CustomDataset(
         train_dataset,
         tokenizer=tokenizer_obj,
@@ -105,7 +116,7 @@ def main():
 
     train_dataloader,validation_dataloader = CustumLoader(params)
 
-    model = ClassifierModel(params).to(params['DEVICE'])
+    model = ClassifierModel().to(params['DEVICE'])
     df,n_params = get_parameters(model)
     tbl = wandb.Table(data=df)
     wandb.log({"Parameters_size":tbl})
@@ -118,10 +129,16 @@ def main():
     tqdm_obj_epoch = tqdm(range(params['EPOCHS']),total = params['EPOCHS'],leave = False)
     tqdm_obj_epoch.set_description_str("Epoch")
     val_loss = np.inf
+
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer,step_size=params["STEP_SIZE"],gamma=params["GAMMA"])
     for epoch in tqdm_obj_epoch:
         train_loss,train_all_pred,train_all_true,train_metrics = train(model,train_dataloader,optimizer,params,loss_fn)
         scheduler.step()
+        data = confusion_matrix(np.array(train_all_true)[:,0], np.array(train_all_pred)[:,0])
+        print(classification_report(train_all_true,train_all_pred))
+        fig = px.imshow(train_all_true)
+        fig = px.imshow(train_all_pred)
+        fig.show()
         test_loss,val_all_pred,val_all_true,val_metrics = evaluate(model,validation_dataloader,params,loss_fn)
         training_loss = sum(train_loss)/len(train_loss)
         training_accuracy = accuracy_score(torch.tensor(train_all_true), torch.tensor(train_all_pred))
@@ -176,6 +193,6 @@ if __name__ == "__main__":
         tags = ["transformer"],
         group = "multi-label",
         config=params,
-        mode = 'online')
+        mode = 'disabled')
     
     main()

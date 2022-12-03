@@ -66,6 +66,6 @@ def get_parameters(model):
         total_bias += count_bias
         bias_weight.update({name : {"Weights":f"{count_weight:,}",
                     "Bias":f"{count_bias:,}"}})
-    df = pd.DataFrame(bias_weight).T.reset_index(names="Layers")
+    df = pd.DataFrame(bias_weight).T.reset_index() # names="Layers"
 
     return df,{"total_weights":f"{total_weights:,}","total_bias":f"{total_bias:,}"}

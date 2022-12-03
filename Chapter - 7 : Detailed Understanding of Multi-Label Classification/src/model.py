@@ -1,22 +1,38 @@
-from torch import nn
 import torch
+import torch.nn as nn 
+import pickle
 
 class ClassifierModel(nn.Module):
-    def __init__(self,args_dict):
+    def __init__(self,):
         super().__init__()
-        self.args_dict = args_dict
-        self.embs = nn.Embedding(args_dict["N_WORDS"],args_dict['EMBED_SIZE'])
-        self.expand_dim = nn.Linear(args_dict["EMBED_SIZE"],args_dict["HIDDEN_SIZE"])
-        encoder_layer = nn.TransformerEncoderLayer(d_model=args_dict["HIDDEN_SIZE"],nhead=args_dict["N_HEAD"]) 
-        self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=args_dict["N_LAYERS"])        
-        self.final_layer = nn.Linear(args_dict["HIDDEN_SIZE"], args_dict["NUM_LABELS"])
+        self.embs = nn.Embedding(800000,32)
+        self.linear1 = nn.Linear(in_features=32,out_features=512)
+        self.transformer = nn.TransformerEncoderLayer(
+            d_model=512,
+            nhead = 8,
+            dim_feedforward= 2048,
+            dropout= 0.1,
+            activation= "relu",
+            batch_first=True,
+        )
+        self.fc = nn.Linear(in_features=512,out_features=6)
 
-    def forward(self,input_ids):
-        emb = self.embs(input_ids) # [16, 450, 32]
-        emb = self.expand_dim(emb)
-        src = self.transformer_encoder(emb)
-        avg_pool= torch.sum(src, 1) # 16,512
-        logits = self.final_layer(avg_pool) 
-        return logits 
+    def forward(self,x): 
+        batch_sz,seq_len = x.size()
+        src_m = x == 0
+        mask = x != 0
+        src_m = src_m.unsqueeze(1).repeat(1,seq_len,1)
+        src_m = src_m.repeat(8,1,1)
+        emb = self.embs(x)
+        out = self.linear1(emb)
+        tras_out = self.transformer(out,src_mask = src_m)
+        mask = mask.unsqueeze(-1)
+        out = self.fc(tras_out)
+        tras_mask = out*mask
+        mean_out_logits = torch.sum(tras_mask,dim = 1)/mask.sum(dim = 1)
+        return mean_out_logits
+
+
+
 
 

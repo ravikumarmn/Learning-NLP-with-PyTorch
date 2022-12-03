@@ -11,7 +11,7 @@ class CustomDataset(Dataset):
         self.pos_weight = self.neg_by_pos(self.targets.sum(axis=0),len(self))
 
     def __len__(self):
-        return len(self.text_pair)
+        return len(self.text_pair.iloc[:100])
 
     def __getitem__(self,idx):
         pairs = eval(self.text_pair.iloc[idx])      

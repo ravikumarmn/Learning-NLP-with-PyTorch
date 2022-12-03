@@ -1,5 +1,6 @@
-RUNTIME_NAME = "Transformer_multilabel-classification_added_expansion_layer_pos_weight_transout_summed"
-BASE_DIR = "/home/Ravikumar/Developer/Learning-NLP-with-PyTorch/"
+RUNTIME_NAME = "Transformer_multilabel-classification_mean"
+# BASE_DIR = "/home/Ravikumar/Developer/Learning-NLP-with-PyTorch/"
+BASE_DIR = "/content/drive/MyDrive/Learning-NLP-with-PyTorch/"
 WORKING_DIR = "Chapter - 7 : Detailed Understanding of Multi-Label Classification/"
 TRAIN_DIR = BASE_DIR +WORKING_DIR + "dataset/prep_train_data.csv"
 TEST_DIR = BASE_DIR +WORKING_DIR + "dataset/test.csv"
@@ -11,7 +12,7 @@ VOCAB_DIR = BASE_DIR + WORKING_DIR + "dataset/vocab.json"
 NUM_LABELS = 6
 MAX_LEN = 450
 DEVICE = 'cuda'
-EPOCHS = 100
+EPOCHS = 2
 BATCH_SIZE = 64
 LEARNING_RATE = 1e-4
 PATIENCE = 3
