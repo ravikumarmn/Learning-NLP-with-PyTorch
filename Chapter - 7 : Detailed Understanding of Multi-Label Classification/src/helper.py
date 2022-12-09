@@ -1,4 +1,4 @@
-import config
+import numpy as np
 import pandas as pd
 import pickle
 import json 
@@ -19,7 +19,7 @@ def data_split_save(params):
     train_dataset,valid_dataset= train_test_split(
         data,
         test_size=0.2,
-        shuffle=True
+        shuffle=True,
     )
 
     splitted_data = {
@@ -69,3 +69,25 @@ def get_parameters(model):
     df = pd.DataFrame(bias_weight).T.reset_index() # names="Layers"
 
     return df,{"total_weights":f"{total_weights:,}","total_bias":f"{total_bias:,}"}
+
+def plot_confusion(all_true,all_pred,args_dict):
+    ideal_unique_cls = {tuple(x):None for x in all_true}
+    unique_cls = {tuple(x):None for x in all_pred+all_true}
+    unique_cls = {x:idx for idx,x in enumerate(unique_cls)}
+    print("Unique classes       :",len(unique_cls))
+    print("Ideal Unique classes :",len(ideal_unique_cls))
+    labels = args_dict["LABELS"]
+    unique_labels = ["|"+"|".join([labels[i]+"|" for i,x in enumerate(key) if x!=0]) for key in unique_cls]
+    confusion_matrix = np.zeros((len(unique_cls),len(unique_cls)))
+
+    #loop
+    #1:cls1_pred|cls2_true
+    #2:cls2_pred|cls1_true
+    for pred,true in zip(all_pred,all_true):
+        t_idx = unique_cls[tuple(true)]
+        p_idx = unique_cls[tuple(pred)]
+        confusion_matrix[t_idx,p_idx] +=1
+
+    normalized_cm = confusion_matrix/(confusion_matrix.sum(axis=1,keepdims=True)+EPSILON)
+
+    df = pd.DataFrame(data = normalized_cm.round(2),columns=unique_labels,index=unique_labels)

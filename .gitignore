@@ -9,4 +9,7 @@
 /*/*/__pycache__
 .vscode/
 /*/src/.ipynb_checkpoints
-
+/*/src/*.html
+/*/src/*.ipynb
+/*/src/*.png 
+/.gitignore

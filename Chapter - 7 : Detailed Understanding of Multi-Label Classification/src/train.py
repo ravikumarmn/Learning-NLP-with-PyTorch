@@ -16,32 +16,27 @@ from tokenizer import Tokenizer
 import os
 import matplotlib.pyplot as plt
 from sklearn.metrics import multilabel_confusion_matrix
-from sklearn.metrics import confusion_matrix,classification_report
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import plotly.express as px
-fig = make_subplots(rows=3, cols=3, start_cell="bottom-left")
+from sklearn.metrics import confusion_matrix,classification_report,ConfusionMatrixDisplay
+import seaborn as sn
+import json
 
-
-
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-import matplotlib.pyplot as plt
-
-
-def train(model,train_loader,optimizer,params,loss):
+def train(model,train_loader,optimizer,params):
     train_loss = list()
     all_pred = list()
     all_true = list()
     model.train()
     tqdm_obj_batch = tqdm(train_loader,total=len(train_loader),leave=None)
     # batch_tqdm_obj.set_description_str("")
+    neg_by_pos_weight = torch.from_numpy(train_loader.dataset.neg_by_pos_weight).to(params["DEVICE"])
+    pos_by_neg_weight = torch.from_numpy(train_loader.dataset.pos_by_neg_weight).to(params["DEVICE"])
     for batch_data in tqdm_obj_batch:
-        
         optimizer.zero_grad()
         input_ids = batch_data['input_ids'].to(params['DEVICE'])
         target = batch_data['target'].to(params['DEVICE'])
         # model takes input of (batch,seq_len)
-
+        
+        weight = 1 / (target.float() * (pos_by_neg_weight - 1) + 1) 
+        loss = nn.BCEWithLogitsLoss(pos_weight=neg_by_pos_weight)
         logits = model(input_ids) # (16,450) --> (16,768) --> (16,6)
         b_loss = loss(logits,target)
         b_loss.backward()
@@ -57,18 +52,22 @@ def train(model,train_loader,optimizer,params,loss):
     # train_losses.extend(train_loss)
     return train_loss,all_pred,all_true,metrics
 
-def evaluate(model,test_loader,params,loss):
+def evaluate(model,test_loader,params):
     model.eval()
     all_pred = list()
     all_true = list()
     test_loss = list()
     tqdm_obj_batch = tqdm(test_loader,total=len(test_loader),leave=None)
+    neg_by_pos_weight = torch.from_numpy(test_loader.dataset.neg_by_pos_weight).to(params["DEVICE"])
+    # pos_by_neg_weight = torch.from_numpy(test_loader.dataset.pos_by_neg_weight).to(params["DEVICE"])    
 
     for batch_data in tqdm_obj_batch:
         input_ids = batch_data['input_ids'].to(params['DEVICE'])
         target = batch_data['target'].to(params['DEVICE'])
-
-        with torch.no_grad():
+        # imbalance_weights = torch.zeros(target.size())
+        # weight = 1 / (target.float() * (pos_by_neg_weight - 1) + 1) 
+        loss = nn.BCEWithLogitsLoss(pos_weight=neg_by_pos_weight)
+        with torch.no_grad():            
             logits = model(input_ids) # (16,450) --> (16,768) --> (16,6)
             b_loss = loss(logits,target)
             test_loss.append(b_loss.item())
@@ -78,7 +77,9 @@ def evaluate(model,test_loader,params,loss):
     acc = accuracy_score(all_true, all_pred)
     f1score = f1_score(all_true,all_pred,average='micro')
     metrics = {"accuracy" : acc,"f1_score":f1score}
+
     return test_loss,all_pred,all_true,metrics
+
 
 def CustumLoader(params):
     tokenizer_obj = Tokenizer("topic-modelling-research-articles")
@@ -115,31 +116,27 @@ def main():
     params = {k:v for k,v in config.__dict__.items() if "__" not in k}
 
     train_dataloader,validation_dataloader = CustumLoader(params)
-
-    model = ClassifierModel().to(params['DEVICE'])
+    vocab = json.load(open(params["VOCAB_DIR"],"r"))
+    vocab_len = len(vocab["vocabs"])  + 1
+    model = ClassifierModel(vocab_len,params).to(params['DEVICE'])
     df,n_params = get_parameters(model)
     tbl = wandb.Table(data=df)
     wandb.log({"Parameters_size":tbl})
     print(n_params)
     
     optimizer = Adam(model.parameters(), lr=params["LEARNING_RATE"])
-    pos_weights = torch.from_numpy(train_dataloader.dataset.pos_weight).to(params["DEVICE"])
 
-    loss_fn = nn.BCEWithLogitsLoss(pos_weight=pos_weights,reduction="mean")
     tqdm_obj_epoch = tqdm(range(params['EPOCHS']),total = params['EPOCHS'],leave = False)
     tqdm_obj_epoch.set_description_str("Epoch")
-    val_loss = np.inf
+    val_score = 0
 
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer,step_size=params["STEP_SIZE"],gamma=params["GAMMA"])
     for epoch in tqdm_obj_epoch:
-        train_loss,train_all_pred,train_all_true,train_metrics = train(model,train_dataloader,optimizer,params,loss_fn)
+        train_loss,train_all_pred,train_all_true,train_metrics = train(model,train_dataloader,optimizer,params)
         scheduler.step()
-        data = confusion_matrix(np.array(train_all_true)[:,0], np.array(train_all_pred)[:,0])
-        print(classification_report(train_all_true,train_all_pred))
-        fig = px.imshow(train_all_true)
-        fig = px.imshow(train_all_pred)
-        fig.show()
-        test_loss,val_all_pred,val_all_true,val_metrics = evaluate(model,validation_dataloader,params,loss_fn)
+
+        test_loss,val_all_pred,val_all_true,val_metrics = evaluate(model,validation_dataloader,params)
+        print(classification_report(val_all_true,val_all_pred))
         training_loss = sum(train_loss)/len(train_loss)
         training_accuracy = accuracy_score(torch.tensor(train_all_true), torch.tensor(train_all_pred))
         validation_loss = sum(test_loss)/len(test_loss)
@@ -148,9 +145,9 @@ def main():
         print(f'\nEpoch: {epoch+1}/{params["EPOCHS"]}')
         print(f"TRAIN : Loss :{training_loss:.4}\tACC :{training_accuracy:.4}\t f1_score :{train_metrics['f1_score']:.4}")
         print(f"VAL   : Loss :{validation_loss:.4},\tACC :{validation_accuracy:.4}\t f1_score :{val_metrics['f1_score']:.4}")
-        
-        if validation_loss < val_loss:
-            val_loss = validation_loss
+
+        if val_metrics['f1_score'] > val_score:
+            val_score = val_metrics['f1_score']
 
             early_stopping = 0  
             torch.save(
@@ -160,9 +157,9 @@ def main():
                     },params["CHECKPOINT_NAME"])
         else:
             early_stopping += 1
-        if early_stopping == params["PATIENCE"]:
-            print("Early stopping")
-            break
+            if early_stopping == params["PATIENCE"]:
+                print("Early stopping")
+                break
 
         wandb.log({
                 "validation/loss" : validation_loss,
@@ -177,8 +174,7 @@ def main():
                     })
 
 if __name__ == "__main__":
-
-    params =  {k:v for k,v in config.__dict__.items() if "__" not in k}
+    params =  {k:v for k,v in config.__dict__.items() if "__" not in k}    
     print(f"Running on : {params['DEVICE']}")    
     print("Params :",params, sep="\n")
     if not os.path.isfile(params["SPLIT_DATA_DIR"]):
@@ -193,6 +189,6 @@ if __name__ == "__main__":
         tags = ["transformer"],
         group = "multi-label",
         config=params,
-        mode = 'disabled')
+        mode = 'online')
     
     main()

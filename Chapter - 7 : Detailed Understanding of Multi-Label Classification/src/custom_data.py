@@ -8,10 +8,11 @@ class CustomDataset(Dataset):
         self.args = args
         self.targets = data[args['LABELS']].values
         self.text_pair = data['pairs']
-        self.pos_weight = self.neg_by_pos(self.targets.sum(axis=0),len(self))
+        self.pos_by_neg_weight = self.pos_neg(self.targets.sum(axis=0),len(self))
+        self.neg_by_pos_weight = self.neg_pos(self.targets.sum(axis=0),len(self))
 
     def __len__(self):
-        return len(self.text_pair.iloc[:100])
+        return len(self.text_pair)
 
     def __getitem__(self,idx):
         pairs = eval(self.text_pair.iloc[idx])      
@@ -30,6 +31,10 @@ class CustomDataset(Dataset):
         }
 
 
-    def neg_by_pos(self,d,total_len):
+    def pos_neg(self,d,total_len):
+        weights = d/(total_len- d)
+        return weights
+
+    def neg_pos(self,d,total_len):
         weights = (total_len- d)/d
         return weights
