@@ -36,7 +36,7 @@ def train(model,train_loader,optimizer,params):
         # model takes input of (batch,seq_len)
         
         weight = 1 / (target.float() * (pos_by_neg_weight - 1) + 1) 
-        loss = nn.BCEWithLogitsLoss(pos_weight=neg_by_pos_weight)
+        loss = nn.BCEWithLogitsLoss()
         logits = model(input_ids) # (16,450) --> (16,768) --> (16,6)
         b_loss = loss(logits,target)
         b_loss.backward()
@@ -66,7 +66,7 @@ def evaluate(model,test_loader,params):
         target = batch_data['target'].to(params['DEVICE'])
         # imbalance_weights = torch.zeros(target.size())
         # weight = 1 / (target.float() * (pos_by_neg_weight - 1) + 1) 
-        loss = nn.BCEWithLogitsLoss(pos_weight=neg_by_pos_weight)
+        loss = nn.BCEWithLogitsLoss()
         with torch.no_grad():            
             logits = model(input_ids) # (16,450) --> (16,768) --> (16,6)
             b_loss = loss(logits,target)

@@ -5,7 +5,7 @@ import json
 class ClassifierModel(nn.Module):
     def __init__(self,vocab_len,params):
         super().__init__()
-        self.embs = nn.Embedding(vocab_len,params["EMBED_SIZE"])
+        self.embs = nn.Embedding(vocab_len,   params["EMBED_SIZE"])
         self.linear1 = nn.Linear(in_features=params["EMBED_SIZE"],out_features=params["HIDDEN_SIZE"]//2)
         self.linear2 = nn.Linear(in_features=params["HIDDEN_SIZE"]//2,out_features=params["HIDDEN_SIZE"])
         self.dropout1 = nn.Dropout(params["DROP_OUT"])

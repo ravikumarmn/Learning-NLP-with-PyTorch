@@ -1,4 +1,4 @@
-RUNTIME_NAME = "Transformer_multilabel-classification_added_pos_weight_dropout1_dropout2_mean" 
+RUNTIME_NAME = "Transformer_multilabel-classification" 
 BASE_DIR = "/home/Ravikumar/Developer/Learning-NLP-with-PyTorch/"
 # BASE_DIR = "/content/drive/MyDrive/Learning-NLP-with-PyTorch/"
 WORKING_DIR = "Chapter - 7 : Detailed Understanding of Multi-Label Classification/"
